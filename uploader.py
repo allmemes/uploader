@@ -14,6 +14,8 @@ from shapely.geometry import MultiPoint, mapping, Point
 class uploader:
     def __init__(self):
         # basic metaData info
+        self.token = None
+        self.loginSuccess = False
         self.taskType = None
         self.defualtRadius = 0
         self.dronePointUrl = None
@@ -72,6 +74,9 @@ class uploader:
         self.canvas.create_window(120, 120, window=self.passWordLabel)
         self.passWordEntry = tk.Entry(self.window, show="*") 
         self.canvas.create_window(270, 120, window=self.passWordEntry)
+        # log in
+        self.loginButton = tk.Button(text='login', command=self.login, font=('helvetica', 15))
+        self.canvas.create_window(410, 105, window=self.loginButton)
         # metadata file path
         self.metaLabel = tk.Label(self.window, text = 'Select metaData:')
         self.metaLabel.config(font=('helvetica', 13))
@@ -157,7 +162,7 @@ class uploader:
                         self.inputCsvs.clear()
                         self.validAllCsv = False
                         return
-                    cleanedDf = cp.cleanInficon(i, newInput)
+                    cleanedDf = cp.clean_flight_log(i, newInput)
                 self.inputCsvs.append(cleanedDf)
                 tempDict[i] = 1
         self.csvDict.update(tempDict)
@@ -185,8 +190,8 @@ class uploader:
     def createBuff(self, points):
         buff = points.buffer(15, resolution=6)
         rawJson = mapping(buff)
-        esriJson = self.toEsriGeometry(rawJson).replace('"', "'")
-        return esriJson
+        esriJson = self.toEsriGeometry(rawJson)
+        return json.loads(esriJson)
 
     def get_token(self, userName, passWord):
         referer = "http://www.arcgis.com/"
@@ -200,6 +205,23 @@ class uploader:
         else:
             return token["token"]
 
+    def login(self):
+        userName = self.userNameEntry.get()
+        passWord = self.passWordEntry.get()
+        if not userName:
+            messagebox.showerror("Error", "Username is empty!")
+            return  
+        if not passWord:
+            messagebox.showerror("Error", "Password is empty!")
+            return  
+        self.token = self.get_token(userName, passWord)
+        if not self.token:
+            messagebox.showerror("Error", "Wrong login info!")
+            return  
+        else:
+            messagebox.showinfo("Success", "Login success!")
+            self.loginSuccess = True
+
     def query_feature(self, token, sql, targetUrl):
         # sql = "Source_Name = 'N1_15_2.8_20220620_153056.csv'"
         query_dict = {"f": "json", "token": token, "where": sql}
@@ -210,6 +232,18 @@ class uploader:
         else:
             return False
 
+    def add_point_features(self, features, targetUrl):
+        appending_dict = {"f": "json",
+                    "token": self.token,
+                    "features": features}
+        urllib.request.urlopen(targetUrl + r"/addFeatures", urllib.parse.urlencode(appending_dict).encode('utf-8'))
+
+    def add_buffer_features(self, features, targetUrl):
+        appending_dict = {"f": "json",
+                    "token": self.token,
+                    "features": features}
+        urllib.request.urlopen(targetUrl + r"/addFeatures", urllib.parse.urlencode(appending_dict).encode('utf-8'))
+
     def appendAllData(self):
         if not self.userNameEntry.get():
             messagebox.showerror("Error", "Username is empty!")
@@ -217,6 +251,9 @@ class uploader:
         if not self.passWordEntry.get():
             messagebox.showerror("Error", "Password is empty!")
             return   
+        if not self.loginSuccess:
+            messagebox.showerror("Error", "You have not successfully login")
+            return  
         if not self.metaEntry.get():
             messagebox.showerror("Error", "MetaData path is empty!")
             return
@@ -229,26 +266,62 @@ class uploader:
         if not self.validAllCsv: 
             messagebox.showerror("Error", "Cannot append with wrong csvs!")
             return 
-        userName = self.userNameEntry.get()
-        passWord = self.passWordEntry.get()
-        token = self.get_token(userName, passWord)
-        if not token:
-            messagebox.showerror("Error", "Wrong login info!")
-            return  
-        # print(token)
-        # print(len(self.inputCsvs))
+
         if len(self.inputCsvs) > 0:
+            pointFeatures, bufferFeatures = [], []
             # if the inputCsvs collector contains df, then start the append process. 
             # Use self.appRestart to check whether we need to do a first, all around api query check.
             # always set the self.appRestart to False after we do a first, all around api query check.
-            for i in self.inputCsvs:
-                points, cleanedDf = self.preprocess(i)
-                geoJson = self.createBuff(points)
-                print(geoJson)
+            if self.taskType == "Inficon":
+                if self.appRestarted:
+                    for i in self.inputCsvs:
+                        points, cleanedDf = self.preprocess(i)
+                        cleanedDf["Utmlong"] = [i.x for i in points]
+                        cleanedDf["Utmlat"] = [i.y for i in points]
+                        geoJson = self.createBuff(points)
+                        sql = "Source_Name = '" + cleanedDf["Source_Name"][0] + "'"
+                        # append inficon buffers
+                        if not self.query_feature(self.token, sql, self.manualBufferUrl):
+                            uploadStruct = {
+                                "attributes" : {"Source_Name": cleanedDf["Source_Name"][0]},
+                                "geometry" : geoJson
+                            }
+                            print(uploadStruct)
+                            bufferFeatures.append(uploadStruct)
+                            # print(bufferFeatures)
+                        # append inficon points
+                        if not self.query_feature(self.token, sql, self.manualPointsUrl):
+                            for _,row in cleanedDf.iterrows():
+                                esriPoint = {"attributes" : {
+                                                "Inspection_Date": row["Flight_Date"],
+                                                "Inspection_Time": row["Flight_Date"].split(" ")[1],
+                                                "Lat": row["SenseLat"],
+                                                "Long": row["SenseLong"],
+                                                "CH4": row["CH4"],
+                                                "Source_Name" : row["Source_Name"]
+                                                },
+                                                "geometry" :
+                                                {
+                                                    "x" : row["Utmlong"],
+                                                    "y" : row["Utmlat"]
+                                                }}
+                                pointFeatures.append(esriPoint)
+                            # print(pointFeatures)
+                    self.appRestarted = False
+                else:
+                    pass
 
 
+                if len(bufferFeatures) > 0:
+                    self.add_buffer_features(bufferFeatures, self.manualBufferUrl)
+                if len(pointFeatures) > 0:
+                    self.add_point_features(pointFeatures, self.manualPointsUrl)
+                messagebox.showinfo("Success", "Append Finished!")
+            else:
+                peaksFeatures = []
+                pass
 
-                
+
             # always clear the dfs for this batch append.
             self.inputCsvs.clear()
         else: 
