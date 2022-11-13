@@ -1,0 +1,20 @@
+{
+  "UTM Zone": 16,
+  "Time Zone": "EST",
+  "Project Name": "test",
+  "Site Center": [42.401090, -83.557090],
+  "List of Layers and types": {
+    "asbuilt": "https://tiles.arcgis.com/tiles/QUg4M9ZDNdUHdQcy/arcgis/rest/services/2020_Q3_Arbor_Hills_As_Built_GCCS_Drawing_Draft/MapServer",
+    "imagery": "https://tiles.arcgis.com/tiles/QUg4M9ZDNdUHdQcy/arcgis/rest/services/Arbor_Hills_2021_12_21_RGB_Ortho/MapServer",
+    "boundary": "https://services6.arcgis.com/QUg4M9ZDNdUHdQcy/arcgis/rest/services/Arbor_Hills_Work_Area/FeatureServer/3",
+    "flightplans": "https://services6.arcgis.com/QUg4M9ZDNdUHdQcy/arcgis/rest/services/202206_Arbor_Hills_SnifferDRONE_Flight_Plan/FeatureServer/14",
+    "dronepoints": "https://services6.arcgis.com/QUg4M9ZDNdUHdQcy/arcgis/rest/services/web_app_test_points/FeatureServer/3",
+    "dronebuffer": "https://services6.arcgis.com/QUg4M9ZDNdUHdQcy/arcgis/rest/services/web_app_test_buffer/FeatureServer/0",
+    "peaks": "https://services6.arcgis.com/QUg4M9ZDNdUHdQcy/arcgis/rest/services/web_app_test_peaks/FeatureServer/2",
+    "manualpoints": "https://services6.arcgis.com/QUg4M9ZDNdUHdQcy/arcgis/rest/services/test_inficon/FeatureServer/0",
+    "manualbuffer": "https://services6.arcgis.com/QUg4M9ZDNdUHdQcy/arcgis/rest/services/test_inficon_buffer/FeatureServer/8"
+  },
+  "Inspection Type": "Inficon",
+  "Default Buffer Radius": 15,
+  "dataBaseName": "web_app_db.sqlite"
+}
