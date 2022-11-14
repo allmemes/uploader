@@ -27,7 +27,6 @@ class uploader:
         # basic input csv info
         self.inputCsvs = []
         self.csvDict = {}
-        self.validAllCsv = False
         ''' appended check
         Every time app starts/restarts: self.appRestarted is true
 
@@ -38,9 +37,8 @@ class uploader:
             if not in key:
                 1, process the csv
                     - if no error, add processed df to inputCsv and record the csv in a temporary dict
-                    - if error, clear the self.inputCsv. set validCsv to false. return 
+                    - if error, clear the self.inputCsv. return 
         merge the new dict batch with the previous csvCounter with update.
-        set validCsv to true
 
         when appending
         check inputCsvs length = 0!
@@ -134,40 +132,9 @@ class uploader:
         return df 
 
     def searchCsv(self):
-        # read in the input folder path and obtain all csvs.
         path = filedialog.askdirectory()
         self.csvEntry.delete(0, tk.END)
         self.csvEntry.insert(tk.END, path)
-        all_csvs = os.listdir(path)    
-        names = list(filter(lambda f: f.endswith('.csv'), all_csvs))
-        tempDict = {}
-        for i in names:
-            try:
-                if self.csvDict[i]:
-                    continue
-            except:
-                if self.taskType == "Inficon":
-                    newInput = self.readInficonDf(path + "\\" + i)
-                    if not isinstance(newInput, pd.DataFrame):
-                        messagebox.showerror("Error", "Wrong csv type.")
-                        self.inputCsvs.clear()
-                        self.validAllCsv = False
-                        return
-                    cleanedDf = cp.cleanInficon(i, newInput)
-                else:
-                    try:
-                        newInput = pd.read_csv(path + "\\" + i)
-                    except:
-                        messagebox.showerror("Error", "Wrong csv type.")
-                        self.inputCsvs.clear()
-                        self.validAllCsv = False
-                        return
-                    cleanedDf = cp.clean_flight_log(i, newInput)
-                self.inputCsvs.append(cleanedDf)
-                tempDict[i] = 1
-        self.csvDict.update(tempDict)
-        # print(self.csvDict)
-        self.validAllCsv = True
 
     def preprocess(self, cleanedDf):
         gt.add_points_to_df(cleanedDf)
@@ -245,6 +212,7 @@ class uploader:
         urllib.request.urlopen(targetUrl + r"/addFeatures", urllib.parse.urlencode(appending_dict).encode('utf-8'))
 
     def appendAllData(self):
+        # some checks before appending
         if not self.userNameEntry.get():
             messagebox.showerror("Error", "Username is empty!")
             return     
@@ -260,13 +228,46 @@ class uploader:
         if not self.validMetaData: 
             messagebox.showerror("Error", "Cannot proceed with invalid metadata!")
             return 
-        if not self.csvEntry.get():
+        # check input csvs
+        path = self.csvEntry.get()
+        if not path:
             messagebox.showerror("Error", "Csv input path is empty!")
             return
-        if not self.validAllCsv: 
-            messagebox.showerror("Error", "Cannot append with wrong csvs!")
-            return 
-
+        # open loading popup for appending
+        popup = tk.Toplevel(self.window)
+        popup.geometry("200x150")
+        tk.Message(popup, text="Appending..", padx=20, pady=20).pack()
+        popup.update()
+        # process csv
+        all_csvs = os.listdir(path)    
+        names = list(filter(lambda f: f.endswith('.csv'), all_csvs))
+        tempDict = {}
+        for i in names:
+            try:
+                if self.csvDict[i]:
+                    continue
+            except:
+                if self.taskType == "Inficon":
+                    newInput = self.readInficonDf(path + "\\" + i)
+                    if not isinstance(newInput, pd.DataFrame):
+                        messagebox.showerror("Error", "Wrong csv type.")
+                        self.inputCsvs.clear()
+                        popup.destroy()
+                        return
+                    cleanedDf = cp.cleanInficon(i, newInput)
+                else:
+                    try:
+                        newInput = pd.read_csv(path + "\\" + i)
+                    except:
+                        messagebox.showerror("Error", "Wrong csv type.")
+                        popup.destroy()
+                        self.inputCsvs.clear()
+                        return
+                    cleanedDf = cp.clean_flight_log(i, newInput)
+                self.inputCsvs.append(cleanedDf)
+                tempDict[i] = 1
+        self.csvDict.update(tempDict)
+        # start appending.
         if len(self.inputCsvs) > 0:
             pointFeatures, bufferFeatures = [], []
             # if the inputCsvs collector contains df, then start the append process. 
@@ -274,24 +275,20 @@ class uploader:
             # always set the self.appRestart to False after we do a first, all around api query check.
             if self.taskType == "Inficon":
                 if self.appRestarted:
+                    print("append for the first time, do a query check")
                     for i in self.inputCsvs:
                         points, cleanedDf = self.preprocess(i)
-                        cleanedDf["Utmlong"] = [i.x for i in points]
-                        cleanedDf["Utmlat"] = [i.y for i in points]
-                        geoJson = self.createBuff(points)
                         sql = "Source_Name = '" + cleanedDf["Source_Name"][0] + "'"
                         # append inficon buffers
                         if not self.query_feature(self.token, sql, self.manualBufferUrl):
+                            geoJson = self.createBuff(points)
                             uploadStruct = {
                                 "attributes" : {"Source_Name": cleanedDf["Source_Name"][0]},
-                                "geometry" : geoJson
-                            }
-                            print(uploadStruct)
+                                "geometry" : geoJson}
                             bufferFeatures.append(uploadStruct)
-                            # print(bufferFeatures)
                         # append inficon points
                         if not self.query_feature(self.token, sql, self.manualPointsUrl):
-                            for _,row in cleanedDf.iterrows():
+                            for index,row in cleanedDf.iterrows():
                                 esriPoint = {"attributes" : {
                                                 "Inspection_Date": row["Flight_Date"],
                                                 "Inspection_Time": row["Flight_Date"].split(" ")[1],
@@ -302,21 +299,48 @@ class uploader:
                                                 },
                                                 "geometry" :
                                                 {
-                                                    "x" : row["Utmlong"],
-                                                    "y" : row["Utmlat"]
+                                                    "x" : points[index].x,
+                                                    "y" : points[index].y
                                                 }}
                                 pointFeatures.append(esriPoint)
-                            # print(pointFeatures)
                     self.appRestarted = False
                 else:
-                    pass
-
-
+                    print("Not restarted, continue appending, skip query check")
+                    for i in self.inputCsvs:
+                        points, cleanedDf = self.preprocess(i)
+                        # append buffer
+                        geoJson = self.createBuff(points)
+                        uploadStruct = {
+                            "attributes" : {"Source_Name": cleanedDf["Source_Name"][0]},
+                            "geometry" : geoJson}
+                        bufferFeatures.append(uploadStruct)
+                        # append points
+                        for index,row in cleanedDf.iterrows():
+                            esriPoint = {"attributes" : {
+                                            "Inspection_Date": row["Flight_Date"],
+                                            "Inspection_Time": row["Flight_Date"].split(" ")[1],
+                                            "Lat": row["SenseLat"],
+                                            "Long": row["SenseLong"],
+                                            "CH4": row["CH4"],
+                                            "Source_Name" : row["Source_Name"]
+                                            },
+                                            "geometry" :
+                                            {
+                                                "x" : points[index].x,
+                                                "y" : points[index].y
+                                            }}
+                            pointFeatures.append(esriPoint)
                 if len(bufferFeatures) > 0:
                     self.add_buffer_features(bufferFeatures, self.manualBufferUrl)
+                else:
+                    print("No new buffer appended")
                 if len(pointFeatures) > 0:
                     self.add_point_features(pointFeatures, self.manualPointsUrl)
+                else:
+                    print("No new points appended")
+                popup.destroy()
                 messagebox.showinfo("Success", "Append Finished!")
+                
             else:
                 peaksFeatures = []
                 pass
