@@ -76,7 +76,7 @@ def cleanInficon(source_file_name, flight_log):
     # flight_log["Microsec"] = flight_log["Microsec"].astype(int)
     # flight_log["Flight_Date"] = flight_log["Flight_Date"].astype(str)
 
-    flight_log = flight_log[["Microsec", "Flight_Date", "SenseLong", "SenseLat", "CH4", "Peak", "Source_Name"]]
+    flight_log = flight_log.reset_index()[["Microsec", "Flight_Date", "SenseLong", "SenseLat", "CH4", "Peak", "Source_Name"]]
     return flight_log
 
 

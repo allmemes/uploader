@@ -10,6 +10,9 @@ import urllib
 import urllib.request
 import collections
 from shapely.geometry import MultiPoint, mapping, Point
+import warnings
+from shapely.errors import ShapelyDeprecationWarning
+warnings.filterwarnings("ignore", category=ShapelyDeprecationWarning) 
 
 class uploader:
     def __init__(self):
@@ -290,6 +293,7 @@ class uploader:
                         sql = "Source_Name = '" + cleanedDf["Source_Name"][0] + "'"
                         # append inficon buffers
                         if not self.query_feature(self.token, sql, self.manualBufferUrl):
+                            print("Appending buffer for ", cleanedDf["Source_Name"][0])
                             geoJson = self.createBuff(points)
                             uploadStruct = {
                                 "attributes" : {"Source_Name": cleanedDf["Source_Name"][0]},
@@ -297,6 +301,7 @@ class uploader:
                             bufferFeatures.append(uploadStruct)
                         # append inficon points
                         if not self.query_feature(self.token, sql, self.manualPointsUrl):
+                            print("Appending points for ", cleanedDf["Source_Name"][0])
                             for index,row in cleanedDf.iterrows():
                                 esriPoint = {"attributes" : {
                                                 "Inspection_Date": row["Flight_Date"],
@@ -318,12 +323,14 @@ class uploader:
                     for i in self.inputCsvs:
                         points, cleanedDf = self.preprocess(i)
                         # append buffer
+                        print("Keep appending buffer for ", cleanedDf["Source_Name"][0])
                         geoJson = self.createBuff(points)
                         uploadStruct = {
                             "attributes" : {"Source_Name": cleanedDf["Source_Name"][0]},
                             "geometry" : geoJson}
                         bufferFeatures.append(uploadStruct)
                         # append points
+                        print("Keep appending points for ", cleanedDf["Source_Name"][0])
                         for index,row in cleanedDf.iterrows():
                             esriPoint = {"attributes" : {
                                             "Inspection_Date": row["Flight_Date"],
@@ -339,15 +346,16 @@ class uploader:
                                                 "y" : points[index].y
                                             }}
                             pointFeatures.append(esriPoint)
+                
                 if len(bufferFeatures) > 0:
                     self.add_buffer_features(bufferFeatures, self.manualBufferUrl)
                 else:
-                    print("No new buffer appended")
+                    print("No new buffer appended since last appending")
                 if len(pointFeatures) > 0:
-                    print(pointFeatures)
                     self.add_point_features(pointFeatures, self.manualPointsUrl)
                 else:
-                    print("No new points appended")
+                    print("No new points appended since last appending")
+
             else:
                 peaksFeatures = []
                 if self.appRestarted:
@@ -357,16 +365,18 @@ class uploader:
                         sql = "Source_Name = '" + cleanedDf["Source_Name"][0] + "'"
                         # append snifferdrone buffers
                         if not self.query_feature(self.token, sql, self.droneBufferUrl):
+                            print("Appending buffer for ", cleanedDf["Source_Name"][0])
                             geoJson = self.createBuff(points)
                             uploadStruct = {
                                 "attributes" : {"Source_Name": cleanedDf["Source_Name"][0]},
                                 "geometry" : geoJson}
                             bufferFeatures.append(uploadStruct)
                         # append snifferdrone peaks
-                        orig_id = 1
-                        cp.find_ch4_peaks(cleanedDf)
-                        peaks = cleanedDf[cleanedDf['Peak'] == 1]
                         if not self.query_feature(self.token, sql, self.dronePeakUrl): 
+                            print("Appending peaks for ", cleanedDf["Source_Name"][0])
+                            orig_id = 1
+                            cp.find_ch4_peaks(cleanedDf)
+                            peaks = cleanedDf[cleanedDf['Peak'] == 1]
                             if (len(peaks) > 0):
                                 for index, row in peaks.iterrows():
                                     peakCenter = Point(points[index].x, points[index].y)
@@ -399,6 +409,7 @@ class uploader:
                                 print("no peaks for ", cleanedDf["Source_Name"][0])
                         # append snifferdrone points
                         if not self.query_feature(self.token, sql, self.dronePointUrl):
+                            print("Appending points for ", cleanedDf["Source_Name"][0])
                             for index,row in cleanedDf.iterrows():
                                 esriPoint = {"attributes" : {
                                         "Flight_Date": row["Flight_Date"].strftime("%m/%d/%Y, %H:%M %p"),
@@ -412,27 +423,85 @@ class uploader:
                                 pointFeatures.append(esriPoint)
                     self.appRestarted = False   
                 else:
-                    pass
-
+                    print("Not restarted, continue snifferdrone appending, skip query check")
+                    for j in self.inputCsvs:
+                        points, cleanedDf = self.preprocess(j)
+                        # append snifferdrone buffers
+                        print("Keep appending buffer for ", cleanedDf["Source_Name"][0])
+                        geoJson = self.createBuff(points)
+                        uploadStruct = {
+                            "attributes" : {"Source_Name": cleanedDf["Source_Name"][0]},
+                            "geometry" : geoJson}
+                        bufferFeatures.append(uploadStruct)
+                        # append snifferdrone peaks
+                        print("Keep appending peaks for ", cleanedDf["Source_Name"][0])
+                        orig_id = 1
+                        cp.find_ch4_peaks(cleanedDf)
+                        peaks = cleanedDf[cleanedDf['Peak'] == 1]
+                        if (len(peaks) > 0):
+                            for index, row in peaks.iterrows():
+                                peakCenter = Point(points[index].x, points[index].y)
+                                outerCircle = {"attributes" : {
+                                "Flight_Date": row["Flight_Date"].strftime("%m/%d/%Y, %H:%M %p"),
+                                "SenseLat": row["SenseLat"],
+                                "SenseLong": row["SenseLong"],
+                                "CH4": row["CH4"],
+                                "Source_Name" : row["Source_Name"],
+                                "BUFF_DIST": 13.57884,
+                                "ORIG_FID": orig_id}}
+                                outerBuffer = mapping(peakCenter.buffer(13.57884, resolution=6))
+                                esriOuterBuffer = json.loads(self.toEsriGeometry(outerBuffer))
+                                outerCircle["geometry"] = esriOuterBuffer
+                                peaksFeatures.append(outerCircle)
+                                innerCircle = {"attributes" : {
+                                "Flight_Date": row["Flight_Date"].strftime("%m/%d/%Y, %H:%M %p"),
+                                "SenseLat": row["SenseLat"],
+                                "SenseLong": row["SenseLong"],
+                                "CH4": row["CH4"],
+                                "Source_Name" : row["Source_Name"],
+                                "BUFF_DIST": 5.876544,
+                                "ORIG_FID": orig_id}}
+                                innerBuffer = mapping(peakCenter.buffer(5.876544, resolution=6))
+                                esriInnerBuffer = json.loads(self.toEsriGeometry(innerBuffer))
+                                innerCircle["geometry"] = esriInnerBuffer  
+                                peaksFeatures.append(innerCircle)
+                                orig_id += 1
+                        else:
+                            print("no peaks for ", cleanedDf["Source_Name"][0])
+                        # append snifferdrone points
+                        print("Keep appending points for ", cleanedDf["Source_Name"][0])
+                        for index,row in cleanedDf.iterrows():
+                            esriPoint = {"attributes" : {
+                                    "Flight_Date": row["Flight_Date"].strftime("%m/%d/%Y, %H:%M %p"),
+                                    "SenseLat": row["SenseLat"],
+                                    "SenseLong": row["SenseLong"],
+                                    "CH4": row["CH4"],
+                                    "Source_Name" : row["Source_Name"]
+                                    },
+                                    "geometry" :
+                                    {"x" : points[index].x, "y" : points[index].y}}
+                            pointFeatures.append(esriPoint)
 
                 if len(bufferFeatures) > 0:
                     self.add_buffer_features(bufferFeatures, self.droneBufferUrl)
                 else:
-                    print("No new buffer appended")
+                    print("No new buffer appended since last appending")
                 if len(peaksFeatures) > 0:
                     self.add_peak_features(peaksFeatures, self.dronePeakUrl)
                 else:
-                    print("No new peaks appended")
+                    print("No new peaks appended since last appending")
                 if len(pointFeatures) > 0:
                     self.add_point_features(pointFeatures, self.dronePointUrl)
                 else:
-                    print("No new points appended")
+                    print("No new points appended since last appending")
     
             popup.destroy()
             messagebox.showinfo("Success", "Append Finished!")
             # always clear the dfs for this batch append.
             self.inputCsvs.clear()
+
         else: 
+            popup.destroy()
             messagebox.showerror("Warning", "All csvs have already been appended for this batch.")
             return 
 
