@@ -55,6 +55,7 @@ class uploader:
         clear self.ipnutCsv after this batch append.
         '''
         self.appRestarted = True
+        self.summary = {"points":[], "polySuc":[], "polyFail":[], "peakSuc":[], "peakFail":[], "invalid":[]}
         # basic gui set up
         self.window = tk.Tk()
         self.canvas = tk.Canvas(self.window, width = 500, height = 320,  relief = 'raised')
@@ -97,6 +98,10 @@ class uploader:
         # start button
         self.startButton = tk.Button(text='append', command=self.appendAllData, font=('helvetica', 15))
         self.canvas.create_window(410, 270, window=self.startButton)
+
+    def clearSummary(self):
+        for i in self.summary.values:
+            i.clear()
 
     def searchMeta(self):
         path = filedialog.askopenfile(filetypes=[("json files", (".json"))])
@@ -482,23 +487,74 @@ class uploader:
                                     {"x" : points[index].x, "y" : points[index].y}}
                             pointFeatures.append(esriPoint)
 
-                if len(bufferFeatures) > 0:
-                    self.add_buffer_features(bufferFeatures, self.droneBufferUrl)
-                else:
-                    print("No new buffer appended since last appending")
-                if len(peaksFeatures) > 0:
-                    self.add_peak_features(peaksFeatures, self.dronePeakUrl)
-                else:
-                    print("No new peaks appended since last appending")
-                if len(pointFeatures) > 0:
-                    self.add_point_features(pointFeatures, self.dronePointUrl)
-                else:
-                    print("No new points appended since last appending")
-    
+                # if len(bufferFeatures) > 0:
+                #     self.add_buffer_features(bufferFeatures, self.droneBufferUrl)
+                # else:
+                #     print("No new buffer appended since last appending")
+                # if len(peaksFeatures) > 0:
+                #     self.add_peak_features(peaksFeatures, self.dronePeakUrl)
+                # else:
+                #     print("No new peaks appended since last appending")
+                # if len(pointFeatures) > 0:
+                #     self.add_point_features(pointFeatures, self.dronePointUrl)
+                # else:
+                #     print("No new points appended since last appending")
+
             popup.destroy()
-            messagebox.showinfo("Success", "Append Finished!")
             # always clear the dfs for this batch append.
             self.inputCsvs.clear()
+
+            # summary interface: {"points":[], "polySuc":[], "polyFail":[], "peakSuc":[], "peakFail":[], "invalid":[]}
+            summary = tk.Toplevel(self.window)
+            summary.geometry("710x450")
+            title = tk.Label(summary, text = self.taskType + " Task Summary:")
+            title.config(font=('helvetica', 15))
+            title.place(x=10, y=10)
+
+            pointFinish = tk.Label(summary, text = 'Points appended:')
+            pointFinish.place(x=20, y=60)
+            pointList = tk.Listbox(summary, height=8, width=30)
+            for i in self.summary["points"]:
+                pointList.insert(tk.END, i)
+            pointList.place(x=20, y=90)
+
+            polySucL = tk.Label(summary, text = 'Polygons appended:')
+            polySucL.place(x=250, y=60)
+            polySucList = tk.Listbox(summary, height=8, width=30)
+            for i in self.summary["polySuc"]:
+                polySucList.insert(tk.END, i)
+            polySucList.place(x=250, y=90)
+
+            polyFailL = tk.Label(summary, text = 'Polygons appending fail:')
+            polyFailL.place(x=480, y=60)
+            polyFailList = tk.Listbox(summary, height=8, width=30)
+            for i in self.summary["polyFail"]:
+                polyFailList.insert(tk.END, i)
+            polyFailList.place(x=480, y=90)
+
+            peakSucL = tk.Label(summary, text = 'Peaks appended:')
+            peakSucL.place(x=20, y=250)
+            peakSucList = tk.Listbox(summary, height=8, width=30)
+            for i in self.summary["peakSuc"]:
+                peakSucList.insert(tk.END, i)
+            peakSucList.place(x=20, y=280)
+
+            peakFailL = tk.Label(summary, text = 'Peaks appending fail:')
+            peakFailL.place(x=250, y=250)
+            peakFailList = tk.Listbox(summary, height=8, width=30)
+            for i in self.summary["peakFail"]:
+                peakFailList.insert(tk.END, i)
+            peakFailList.place(x=250, y=280)
+
+            invalid = tk.Label(summary, text = 'Invalid json format:')
+            invalid.place(x=480, y=250)
+            invalidList = tk.Listbox(summary, height=8, width=30)
+            for i in self.summary["invalid"]:
+                invalidList.insert(tk.END, i)
+            invalidList.place(x=480, y=280)
+
+            summary.update()
+            self.clearSummary()
 
         else: 
             popup.destroy()
