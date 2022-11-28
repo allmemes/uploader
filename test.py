@@ -3,6 +3,8 @@ import datetime
 from tkinter import *
 from threading import Thread
 import time
+import csvprocessing as cp
+from shapely.geometry import mapping, Point
 
 # class test:
 #     def __init__(self):
@@ -49,56 +51,56 @@ import time
 # go1.run()
 
 
-summary = Tk()
-summary.geometry("800x450")
-task = "Inficon" + " Task Summary:"
-title = Label(summary, text = task)
-title.config(font=('helvetica', 15))
-title.place(x=10, y=10)
+# summary = Tk()
+# summary.geometry("800x450")
+# task = "Inficon" + " Task Summary:"
+# title = Label(summary, text = task)
+# title.config(font=('helvetica', 15))
+# title.place(x=10, y=10)
 
-pointFinish = Label(summary, text = 'Points appended:')
-pointFinish.place(x=20, y=60)
-pointList = Listbox(summary, height=8, width=34)
-for line in range(50):
-   pointList.insert(END, 'This is line number' + str(line))
-pointList.place(x=20, y=90)
+# pointFinish = Label(summary, text = 'Points appended:')
+# pointFinish.place(x=20, y=60)
+# pointList = Listbox(summary, height=8, width=34)
+# for line in range(50):
+#    pointList.insert(END, 'This is line number' + str(line))
+# pointList.place(x=20, y=90)
 
-polySucL = Label(summary, text = 'Polygons appended:')
-polySucL.place(x=280, y=60)
-polySucList = Listbox(summary, height=8, width=34)
-for line in range(50):
-   polySucList.insert(END, 'This is line number' + str(line))
-polySucList.place(x=280, y=90)
+# polySucL = Label(summary, text = 'Polygons appended:')
+# polySucL.place(x=280, y=60)
+# polySucList = Listbox(summary, height=8, width=34)
+# for line in range(50):
+#    polySucList.insert(END, 'This is line number' + str(line))
+# polySucList.place(x=280, y=90)
 
-polyFailL = Label(summary, text = 'Polygons appending fail:')
-polyFailL.place(x=540, y=60)
-polyFailList = Listbox(summary, height=8, width=34)
-for line in range(50):
-   polyFailList.insert(END, 'This is line number' + str(line))
-polyFailList.place(x=540, y=90)
+# polyFailL = Label(summary, text = 'Polygons appending fail:')
+# polyFailL.place(x=540, y=60)
+# polyFailList = Listbox(summary, height=8, width=34)
+# for line in range(50):
+#    polyFailList.insert(END, 'This is line number' + str(line))
+# polyFailList.place(x=540, y=90)
 
-peakSucL = Label(summary, text = 'Peaks appended:')
-peakSucL.place(x=20, y=250)
-peakSucList = Listbox(summary, height=8, width=34)
-for line in range(50):
-   peakSucList.insert(END, 'This is line number' + str(line))
-peakSucList.place(x=20, y=280)
+# peakSucL = Label(summary, text = 'Peaks appended:')
+# peakSucL.place(x=20, y=250)
+# peakSucList = Listbox(summary, height=8, width=34)
+# for line in range(50):
+#    peakSucList.insert(END, 'This is line number' + str(line))
+# peakSucList.place(x=20, y=280)
 
-peakFailL = Label(summary, text = 'Peaks appending fail:')
-peakFailL.place(x=280, y=250)
-peakFailList = Listbox(summary, height=8, width=34)
-for line in range(50):
-   peakFailList.insert(END, 'This is line number' + str(line))
-peakFailList.place(x=280, y=280)
+# peakFailL = Label(summary, text = 'Peaks appending fail:')
+# peakFailL.place(x=280, y=250)
+# peakFailList = Listbox(summary, height=8, width=34)
+# for line in range(50):
+#    peakFailList.insert(END, 'This is line number' + str(line))
+# peakFailList.place(x=280, y=280)
 
-invalid = Label(summary, text = 'Invalid json format:')
-invalid.place(x=540, y=250)
-invalidList = Listbox(summary, height=8, width=34)
-for line in range(50):
-   invalidList.insert(END, 'This is line number' + str(line))
-invalidList.place(x=540, y=280)
+# invalid = Label(summary, text = 'Invalid json format:')
+# invalid.place(x=540, y=250)
+# invalidList = Listbox(summary, height=8, width=34)
+# for line in range(50):
+#    invalidList.insert(END, 'This is line number' + str(line))
+# invalidList.place(x=540, y=280)
 
-mainloop()
+# mainloop()
 
 # a = pd.DataFrame({"a":[1,2,34], "b":[2,3,4]})
 # # for index,row in a.iterrows():
@@ -117,3 +119,33 @@ mainloop()
 # for i in a.values():
 #     i.clear()
 # print(a)
+
+
+# C:\Users\15276\Desktop\test\2022 Q3 GFL day0 day2 inficon\92003059_20220719_1601_IRW0082.csv
+# C:\Users\15276\Desktop\test\92003117_20220719_1333_IRW0030.csv
+# with open(r"C:\Users\15276\Desktop\test\92003117_20220719_1333_IRW0030.csv", "r") as file:
+#    if file.read(1) == "I":
+#          while file.readline() != '\n':
+#             pass
+#          df = pd.read_csv(file)
+#    else:
+#          df = None
+
+df = pd.read_csv(r"C:\Users\15276\Desktop\test\NE2_15_1.7_20220624_135905.csv")
+# print(df)
+# cleanedDf = cp.cleanInficon("test", df)
+cleanedDf = cp.clean_flight_log("test", df)
+
+cleanedDf["points"] = cleanedDf.apply(lambda r: Point(r["SenseLong"], r["SenseLat"]), axis=1)
+cp.find_ch4_peaks(cleanedDf)
+# peaks = cleanedDf[cleanedDf['Peak'] == 1]
+print(cleanedDf)
+
+# df = df[df["Long"] != 0.0]
+# df = df[df["Lat"] != 0.0]
+# df = df[pd.to_numeric(df['Long'], errors='coerce').notnull()]
+# df = df[pd.to_numeric(df['Lat'], errors='coerce').notnull()]
+
+# print(df.Long[24])
+# print(type(df.Long[24]))
+# print(df.Long[24].isnumeric())

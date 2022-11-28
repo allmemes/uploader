@@ -46,6 +46,9 @@ def clean_flight_log(source_file_name, flight_log):
     # flight_log["Microsec"] = flight_log["Microsec"].astype(int)
     # flight_log["Flight_Date"] = flight_log["Flight_Date"].astype(str)
 
+    flight_log["SenseLong"] = flight_log["SenseLong"].astype("float")
+    flight_log["SenseLat"] = flight_log["SenseLat"].astype("float")
+
     flight_log = flight_log.reset_index()[["Microsec", "Flight_Date", "SenseLong", "SenseLat", "CH4", "Source_Name"]]
 
     return flight_log
@@ -72,6 +75,8 @@ def cleanInficon(source_file_name, flight_log):
     flight_log["Peak"] = 0
 
     flight_log.rename(columns={"Long": "SenseLong", "Lat": "SenseLat"}, inplace=True)
+    flight_log["SenseLong"] = flight_log["SenseLong"].astype("float")
+    flight_log["SenseLat"] = flight_log["SenseLat"].astype("float")
 
     # flight_log["Microsec"] = flight_log["Microsec"].astype(int)
     # flight_log["Flight_Date"] = flight_log["Flight_Date"].astype(str)

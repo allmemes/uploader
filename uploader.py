@@ -442,15 +442,15 @@ class uploader:
             else:
                 peaksFeatures = []
                 peaksDict = {}
-                snifBufferTask = Thread(target=self.bufferThread, args=[bufferFeatures, self.droneBufferUrl])
+                # snifBufferTask = Thread(target=self.bufferThread, args=[bufferFeatures, self.droneBufferUrl])
                 snifPeakTask = Thread(target=self.peakThread, args=[peaksFeatures, peaksDict])
-                SnifPointTask = Thread(target=self.snifferPointThread, args=[pointFeatures])
-                snifBufferTask.start()
+                # SnifPointTask = Thread(target=self.snifferPointThread, args=[pointFeatures])
+                # snifBufferTask.start()
                 snifPeakTask.start() 
-                SnifPointTask.start()
-                snifBufferTask.join()
+                # SnifPointTask.start()
+                # snifBufferTask.join()
                 snifPeakTask.join()
-                SnifPointTask.join()
+                # SnifPointTask.join()
 
                 # for j in self.inputCsvs:
                 #     points, cleanedDf = self.preprocess(j)
