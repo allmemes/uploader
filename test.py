@@ -5,6 +5,7 @@ from threading import Thread
 import time
 import csvprocessing as cp
 from shapely.geometry import mapping, Point
+from scipy.signal import find_peaks
 
 # class test:
 #     def __init__(self):
@@ -131,15 +132,19 @@ from shapely.geometry import mapping, Point
 #    else:
 #          df = None
 
-df = pd.read_csv(r"C:\Users\15276\Desktop\test\NE2_15_1.7_20220624_135905.csv")
+df = pd.read_csv(r"C:\Users\15276\Desktop\test\2022 06 GFL snifferdrone\NE2_15_1.7_20220624_135905.csv")
 # print(df)
 # cleanedDf = cp.cleanInficon("test", df)
+print(len(df))
 cleanedDf = cp.clean_flight_log("test", df)
 
-cleanedDf["points"] = cleanedDf.apply(lambda r: Point(r["SenseLong"], r["SenseLat"]), axis=1)
-cp.find_ch4_peaks(cleanedDf)
+# cleanedDf["points"] = cleanedDf.apply(lambda r: Point(r["SenseLong"], r["SenseLat"]), axis=1)
+# peaks = find_peaks(df["CH4"], height=200, distance=7)
+# cleanedDf.loc[peaks[0], ["Peak"]] = 1
+# cleanedDf["Peak"] = cleanedDf["Peak"].fillna(0).astype(int)
+# cp.find_ch4_peaks(cleanedDf)
 # peaks = cleanedDf[cleanedDf['Peak'] == 1]
-print(cleanedDf)
+print(len(cleanedDf))
 
 # df = df[df["Long"] != 0.0]
 # df = df[df["Lat"] != 0.0]
@@ -149,3 +154,10 @@ print(cleanedDf)
 # print(df.Long[24])
 # print(type(df.Long[24]))
 # print(df.Long[24].isnumeric())
+
+# a = pd.DataFrame({"a":[1,1,1,4,5,6,6], "b":[2,2,2,8,9,10,10], "c":[2,3,3,4,10, 20, 17]})
+# print(a)
+# c_maxes = a.groupby(["a", "b"]).c.transform(max)
+# a = a.loc[a.c == c_maxes]
+# a = a.drop_duplicates(subset = ['a'], keep = 'first')
+# print(a)

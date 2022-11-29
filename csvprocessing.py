@@ -24,10 +24,11 @@ def clean_flight_log(source_file_name, flight_log):
     # if diff > 0:
     #     print(f"{diff} null Lat/Lons removed")
 
-    # 2, drop rows with the same senselong, senselat, and ch4, and then drop rows with the same senselong and senselat, but keep the one with the largest ch4.
-    flight_log = flight_log.drop_duplicates(subset = ['SenseLong', 'SenseLat', 'CH4'], keep = 'first')
+    # 2, drop rows with the same senselong and senselat, but keep the one with the largest ch4. Then, drop rows with the same senselong, senselat, and ch4, but keeping the first.
+    # flight_log = flight_log.drop_duplicates(subset = ['SenseLong', 'SenseLat', 'CH4'], keep = 'first')
     ch4_maxes = flight_log.groupby(["SenseLong", "SenseLat"]).CH4.transform(max)
     flight_log = flight_log.loc[flight_log.CH4 == ch4_maxes]
+    flight_log = flight_log.drop_duplicates(subset = ['SenseLong', 'SenseLat'], keep = 'first')
 
     flight_log["Source_Name"] = source_file_name
     flight_log["CH4"] = round(flight_log["CH4"]).astype(int)
@@ -60,9 +61,10 @@ def cleanInficon(source_file_name, flight_log):
     flight_log = flight_log[pd.to_numeric(flight_log['Long'], errors='coerce').notnull()]
     flight_log = flight_log[pd.to_numeric(flight_log['Lat'], errors='coerce').notnull()]
 
-    flight_log = flight_log.drop_duplicates(subset = ['Long', 'Lat', 'CH4'], keep = 'first')
+    # flight_log = flight_log.drop_duplicates(subset = ['Long', 'Lat', 'CH4'], keep = 'first')
     ch4_maxes = flight_log.groupby(["Long", "Lat"]).CH4.transform(max)
     flight_log = flight_log.loc[flight_log.CH4 == ch4_maxes]
+    flight_log = flight_log.drop_duplicates(subset = ['Long', 'Lat'], keep = 'first')
 
     flight_log["Source_Name"] = source_file_name
     flight_log["CH4"] = round(flight_log["CH4"]).astype(int)
